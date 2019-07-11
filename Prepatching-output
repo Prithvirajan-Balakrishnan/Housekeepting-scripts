@@ -1,1 +1,234 @@
+DATE=$(date +%d%m%Y)
+TIME=$(date +%H%M%S)
+# Remote Nezumi log spcace is @admnpr01; if not change this!
+RLOG_DIR="admnpr01:/home/NEZUMI/track/"
+#LOG_DIR="/home/$EID/Nezumi/track/$DATE.$TIME" # Can't declare here, since EID is unknown yet!
+#TAR_NAME="$LOG_DIR/$(uname -n|cut -d. -f1)_nezumi.$DATE.$TIME.tgz"# Can't declare here, since LOG_DIR is unknown yet!
+clear # I love a neat screen :-)
+############################## Begin function declaration ################################
+        #
+        #
+        mainfun_exec () # Function name is mainfun_exec, where system info is collected.
+        {
+                # Log is kept in your home directory!
+                LOG_DIR="/home/$EID/Nezumi/track/$DATE.$TIME"
+                TAR_NAME="$LOG_DIR/$(uname -n|cut -d. -f1)_nezumi.$DATE.$TIME.tgz" # Archive file name
+                mkdir -p $LOG_DIR
+                # Do u want to reset root password?"
+                echo -e "############################################################"
+                echo -e "# WARNING! If you change root password cyberark will fail! #"
+                echo -e "#                  (Avoid this step maximum)               #"
+                echo -e "############################################################\n"
+                echo -n "Do you want to change root's password? (y/n): "
+                read CH
+                case $CH in
+                        y|Y|yes|YES)
+                        echo "r3dhat00" | passwd --stdin root;
+                        echo "+ INFO: Root password is set to the default (r3d*****)"
+                        ;;
+                        n|N|no|NO)
+                        echo "+ INFO: Root password is not changed"
+                        ;;
+                        *)
+                        echo "+ INFO: Root password is not changed"
+                        ;;
+                esac
+
+                echo "+ Saving server specific info..." ;
+                uname -a > $LOG_DIR/uname.out.$DATE 2>&1;
+                uptime > $LOG_DIR/$(uname -n|cut -d. -f1)_uptime.$DATE 2>&1;
+                who -b > $LOG_DIR/lastboot.out.$DATE 2>&1;
+                # Get Kernel version
+                KERNEL_VER=$(uname -r)
+                #echo "+ Saving current kernel & initrd (Ver - $KERNEL_VER)";
+                #mkdir $LOG_DIR/kernel
+                #cp -pi /boot/*$KERNEL_VER* $LOG_DIR/kernel/
+                #cp -pi /boot/grub/grub.conf $LOG_DIR/kernel/
+                echo "+ Saving list of loged in users";
+                #/usr/bin/w > $LOG_DIR/users.out.$DATE 2>&1;
+                echo "+ Saving CUP, Memory & System utilization";
+                top -n 1 > $LOG_DIR/top.out.$DATE 2>&1;
+                free -m > $LOG_DIR/memory_usage.out.$DATE 2>&1;
+                echo "+ Saving list of mounted filesystems";
+                df -h > $LOG_DIR/df.out.$DATE 2>&1;
+                echo "+ Saving partition information";
+                fdisk -l >  $LOG_DIR/fdisk.out.$DATE 2>&1;
+                echo "+ Saving list of VGs";
+                vgscan >  $LOG_DIR/vgscan.out.$DATE 2>&1;
+                echo "+ Saving list of PVs";
+                pvscan >  $LOG_DIR/pvscan.out.$DATE 2>&1;
+                echo "+ Saving list of LVs";
+                lvscan >  $LOG_DIR/lvscan.out.$DATE 2>&1;
+                echo "+ Saving services info on runlevels";
+                chkconfig --list >  $LOG_DIR/chkconfig.out.$DATE 2>&1;
+                echo "+ Saving list of all active process";
+                ps -ef >  $LOG_DIR/ps.out.$DATE 2>&1;
+                echo "+ Saving list of all opened ports & sockets";
+                lsof -i >  $LOG_DIR/port_opened.$DATE 2>&1;
+                echo "+ Saving device files";
+                ls -l /dev/ |sort >  $LOG_DIR/device_list.$DATE 2>&1;
+                tar cvfz $LOG_DIR/dev.$DATE.tgz /dev > /dev/null 2>&1;
+                echo "+ Saving list of all loaded kernel modules";
+                lsmod >  $LOG_DIR/lsmod.out.$DATE 2>&1;
+                echo "+ Saving list of installed rpms";
+                rpm -qa >  $LOG_DIR/rpm.out.$DATE 2>&1;
+                echo "+ Saving pvdisplay, vgdisplay & lvdisplay output";
+                vgdisplay -v >  $LOG_DIR/vgdisplay.out.$DATE 2>&1;
+                lvdisplay -v >  $LOG_DIR/lvdisplay.out.$DATE 2>&1;
+                pvdisplay -v >  $LOG_DIR/pvdisplay.out.$DATE 2>&1;
+                echo "+ Saving network info";
+                netstat -in >  $LOG_DIR/netstat.out.$DATE 2>&1;
+                /sbin/ifconfig -a >  $LOG_DIR/ifconfig.out.$DATE 2>&1;
+                echo "+ Saving the routing table";
+                netstat -rn >  $LOG_DIR/netstatrn.out.$DATE 2>&1;
+                #
+                echo "+ Saving current grub.conf";
+                if [ -f /etc/grub.conf.$DATE ]; then # grub backup existing, keep its copy.
+                        mv /etc/grub.conf.$DATE /etc/grub.conf.$DATE.mvd$TIME
+                        cp -pf /etc/grub.conf /etc/grub.conf.$DATE
+                        cp -p /etc/grub.conf $LOG_DIR/grub.conf.back.$DATE
+                else
+                        cp -p /etc/grub.conf /etc/grub.conf.$DATE
+                        cp -p /etc/grub.conf $LOG_DIR/grub.conf.back.$DATE
+                fi;
+                #
+                echo "+ Saving fstab"
+                if [ -f /etc/fstab.$DATE ]; then # fstab's backup existing, keep its copy.
+                        mv /etc/fstab.$DATE /etc/fstab.$DATE.mvd$TIME
+                        cp -pf /etc/fstab /etc/fstab.$DATE
+                        cp -p /etc/fstab $LOG_DIR/fstab.back.$DATE
+                else
+                        cp -pf /etc/fstab /etc/fstab.$DATE
+                        cp -p /etc/fstab $LOG_DIR/fstab.back.$DATE
+                fi;
+                echo "+ Saving inittab"
+                cp -p /etc/inittab /etc/inittab.$DATE
+                cp -p /etc/inittab $LOG_DIR/inittab.back.$DATE
+                # Check if apache is running, then it backup
+                ps -ef |grep httpd |grep -v grep > /dev/null
+                if [ $? -eq 0 ]; then
+                        echo "+ INFO: This seems to be an Apache server, backing it up..."
+                        tar cvfz $LOG_DIR/httpd_backup.$DATE.$TIME.tgz /etc/httpd/ >/dev/null 2>&1 ;
+                else
+                        echo "+ INFO: This seems not an Apache server, not backuping it up!"
+                fi;
+                #
+                if [ -f /sbin/powermt ]; then # check if powerpath is installed
+                        echo "+  Saving a list of powerpathed storage disks ---";
+                        /sbin/powermt display dev=all >  $LOG_DIR/powermt.out.$DATE 2>&1;
+                else
+                        echo "+ INFO: Powerpath is not found - looks a non Storage attached server!"
+                fi;
+                #
+                #
+                if [ -f /usr/local/cmcluster/bin/cmviewcl ]; then # Check if cluster installed
+                        echo "+  Collecting cluster information ---";
+                        /usr/local/cmcluster/bin/cmviewcl >  $LOG_DIR/cmviewcl.out.$DATE 2>&1;
+                else
+                        echo "+ INFO: cmviewcl is not found - looks a non clustered server!"
+                fi;
+                #
+                # Done collecting...
+                echo -e "\n\tCOMPLETED --- check $LOG_DIR !"
+                echo -e "\nNote: Before patching test reboot the server. Use \"/sbin/shutdown -r now\" "
+                echo -e "\nNote: You will be rebooting - \"$(uname -n)\" "
+                # Upload collected logs to a server
+                echo -e "\nNote: Collected data need to be uploaded to $RLOG_DIR"
+                tar cvfz $TAR_NAME $LOG_DIR >/dev/null 2>&1;
+                chown -R $EID /home/$EID/Nezumi
+                scp $TAR_NAME $EID@$RLOG_DIR
+                #
+                if [ $? -gt 0 ]; then # Not successfully copied to admnpr01 - some error!
+                        echo -n " I could not reach \"admnpr01\" - Plz give another server name: "
+                        read -n 9 SERVER;
+                        if [ "$SERVER" == "" ]; then
+                                echo -e "\tNo server name is given - exiting! "
+                                echo -e "\tTake care of the archive \"$TAR_NAME\" \n"
+                                exit 2
+                        else
+                                scp $TAR_NAME $EID@$SERVER:/home/$EID/
+                                if [ $? -gt 0 ]; then # Not successfully copied to $SERVER - error
+                                        echo -e "Error! can't copy to $SERVER! Take care of \"$TAR_NAME\" \n"
+                                else
+                                        echo -e "Successfully copied to \"$SERVER\" (File: /home/$EID/$(uname -n|cut -d. -f1)_nezumi.$DATE.$TIME.tgz) \n"
+                                fi;
+                        fi;
+                fi;
+                #
+        }
+        # Main function ends here .....
+        #
+        #
+        ################ Declare EUID check function ##########
+        fun_euidcheck ()
+        {
+                # Read EUID from user input
+                read -n 7 ID
+                if [ "$ID" == "" ]; then
+                        echo "You have not entered your EUID, exting!"
+                        exit
+                fi
+                EID1=`echo $ID|tr "A-Z" "a-z"`
+                # If EUID is partially entered, i will pic the fist matching one from /etc/passwd file :-)
+                EID=`cat /etc/passwd |cut -d: -f1 |grep -i $EID1 |head -1`
+                ID_NAME=`cat /etc/passwd |grep -i $EID1 |cut -d: -f5 |head -1`
+                cat /etc/passwd |cut -d: -f1 |grep -i $EID1 >/dev/null
+        }
+        # EUID check function ends here .....
+
+        # Below script is to make sure you are intented to
+        # reboot the same server that you are logged in
+        # Date: 16 Dec 2010
+        #
+        fun_servercheck ()
+        {
+                THIS_SERVER=`uname -n |cut -d"." -f1|tr "A-Z" "a-z"`;
+                if [ "$1" == "" ]; then
+                        echo -n "Enter the server name (check if you on the right): "
+                        read INPUT
+                        INTENTED_SERVER=`echo $INPUT|tr "A-Z" "a-z"`;
+                else
+                        INTENTED_SERVER=`echo $1|tr "A-Z" "a-z"`;
+                fi;
+
+                if [ "$INTENTED_SERVER" == "$THIS_SERVER" ]; then
+                        echo "You are on right server - go ahead"
+                else
+                        echo
+                        echo -e "\tNo! Server is wrong, exiting!"
+                        ME=`echo $THIS_SERVER|tr "a-z" "A-Z" `
+                        echo -e "\tThis Server is $ME "
+                        echo
+                        exit 9
+                fi
+        }
+        # Server check function ends here .....
+############################## End of function declaration ################################
+#
+#
+echo -e "<<<Linux Nezumi>>>\n\n\tWelcome! You are running Nezumi pre-patching script on $(uname -n|tr "a-z" "A-Z"| cut -d. -f1)."
+echo -e "\t      (This script backups some system specific info) \n"
+# Check if this is executed on Linux
+if [ -f /etc/redhat-release ]; then # Fine, this is a linux machine
+        if [ $UID -eq 0 ]; then # Proceed as root user only...
+                # Call Server check function
+                fun_servercheck
+                # Enter your EID
+                echo -n "What is your CapitalOne EUID? :"
+                fun_euidcheck # Call EUID check function
+                while [ $? -eq 1 ]; do
+                        echo "Invalid EUID, try again..."
+                        echo -n "Enter your EUID: "
+                        fun_euidcheck
+                done
+                # Call the main function & collect system info...
+                echo -e "INFO: Proceeding with first matching EUID - \"$EID\" ("$ID_NAME")\n"
+                mainfun_exec
+        else
+                # Non root user can not execute this script
+                echo "You must be root to execute this script - exiting!";
+        fi;
+else
+        echo -e "ERROR! This script runs ONLY on Linux, exiting! \n"
+fi;
 
