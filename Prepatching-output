@@ -1,8 +1,6 @@
 DATE=$(date +%d%m%Y)
 TIME=$(date +%H%M%S)
-# Remote Nezumi log spcace is @admnpr01; if not change this!
-RLOG_DIR="admnpr01:/home/NEZUMI/track/"
-#LOG_DIR="/home/$EID/Nezumi/track/$DATE.$TIME" # Can't declare here, since EID is unknown yet!
+#LOG_DIR="/home/$EID/Patching/track/$DATE.$TIME" # Can't declare here, since EID is unknown yet!
 #TAR_NAME="$LOG_DIR/$(uname -n|cut -d. -f1)_nezumi.$DATE.$TIME.tgz"# Can't declare here, since LOG_DIR is unknown yet!
 clear # I love a neat screen :-)
 ############################## Begin function declaration ################################
@@ -11,8 +9,8 @@ clear # I love a neat screen :-)
         mainfun_exec () # Function name is mainfun_exec, where system info is collected.
         {
                 # Log is kept in your home directory!
-                LOG_DIR="/home/$EID/Nezumi/track/$DATE.$TIME"
-                TAR_NAME="$LOG_DIR/$(uname -n|cut -d. -f1)_nezumi.$DATE.$TIME.tgz" # Archive file name
+                LOG_DIR="/home/$EID/Patching/track/$DATE.$TIME"
+                TAR_NAME="$LOG_DIR/$(uname -n|cut -d. -f1)_Patching.$DATE.$TIME.tgz" # Archive file name
                 mkdir -p $LOG_DIR
                 # Do u want to reset root password?"
                 echo -e "############################################################"
@@ -23,7 +21,7 @@ clear # I love a neat screen :-)
                 read CH
                 case $CH in
                         y|Y|yes|YES)
-                        echo "r3dhat00" | passwd --stdin root;
+                        echo "Password" | passwd --stdin root;
                         echo "+ INFO: Root password is set to the default (r3d*****)"
                         ;;
                         n|N|no|NO)
@@ -206,7 +204,7 @@ clear # I love a neat screen :-)
 ############################## End of function declaration ################################
 #
 #
-echo -e "<<<Linux Nezumi>>>\n\n\tWelcome! You are running Nezumi pre-patching script on $(uname -n|tr "a-z" "A-Z"| cut -d. -f1)."
+echo -e "<<<Linux Patching>>>\n\n\tWelcome! You are running Patching pre-patching script on $(uname -n|tr "a-z" "A-Z"| cut -d. -f1)."
 echo -e "\t      (This script backups some system specific info) \n"
 # Check if this is executed on Linux
 if [ -f /etc/redhat-release ]; then # Fine, this is a linux machine
