@@ -1,1 +1,180 @@
-post
+#Script     : postbootcheck_new.sh
+##############################################################
+
+echo "
+####################################################################
+#                                                                  #
+#  Description: Script Using to collect OS details after reboot    #
+
+#                                                                  #
+#################################################################### "
+
+
+
+if [[ $(id -u) -ne 0 ]]
+then
+        echo -e "\n Hello `whoami` "
+        echo -e "\n This script must be run as root \n"
+        exit
+fi
+
+if [[ $(uname) != "Linux" ]]
+then
+        echo "This Script will work in Linux only"
+        exit 1
+fi
+
+
+
+DATE=$(date +%F)
+LOG2=/tmp/postboot-${DATE}.txt
+LOG3=/tmp/postboot-misc-${DATE}.txt
+echo -e "\n\t ~~~~~~~~ Post boot Script ~~~~~~~~ "
+echo " Log file  : ${LOG2}"
+echo " Misc Log file  : ${LOG3}"
+
+(
+sysinfo()
+{
+        echo -e " -------> Post Boot Script <------- \n"
+        echo -e "Hostname        : $(uname -n) "
+        echo -e "OS Type         : $OSTYPE "
+        echo -e "OS arch          : $(getconf  LONG_BIT)"
+        echo -e "uname -a         : $(uname -a)"
+        echo -e "Runlevel        : $(runlevel)"
+        echo -e "Date            : $(date)"
+
+        if [ -f /etc/redhat-release ]; then
+                echo -e "Operating system :" $(cat /etc/redhat-release)
+        fi
+
+        echo -e "Current  Kernel  :" $(uname -r)
+        echo -e "RAM             :" $(free -otm | grep Mem: | awk '{print $2 " MB"}')
+        echo -e "Swap            :" $(free -otm | grep Swap: | awk '{print $2 " MB"}')
+        echo -e "Total Processor  :" $(cat /proc/cpuinfo  | grep ^processor |wc -l)
+}
+
+echo -e "\n Please Wait .......  \t"
+for i in `seq 1 25`; do echo -e "#" | tr [:space:] '#' ; sleep 0.1;done  &
+
+
+export PATH=$PATH:/usr/kerberos/sbin:/usr/kerberos/bin:/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin:/root/bin
+echo > ${LOG2}
+
+exec >> ${LOG2} 2>>${LOG2}
+
+sysinfo
+
+#Cluster Status
+
+if [ -f /usr/sbin/clustat ];then
+        echo -e "\n ~~~~~ Cluster Status ~~~~ \n"
+                clustat
+fi
+
+echo -e "\n ~~~~ Ethernet IP Address ~~~~ "
+        ifconfig -a | egrep -e "inet addr|Link encap"
+
+echo -e "\n ~~~~ Ethernet link Status ~~~~"
+        for i in $(ifconfig -a | grep eth | cut -d " " -f1);do echo $i : $(ethtool $i | grep -i "Link detect") ;done
+
+echo -e "\n ~~~~ Routing Table ~~~~ "
+        netstat -rn
+
+#Bonding Status
+if [ -f /proc/net/bonding/bond0 ]
+then
+        echo -e "\n ~~~~ Bonding Details ~~~~"
+        cat /proc/net/bonding/bond0
+fi
+
+#LVM
+echo -e "\n ~~~~ Available Physical volume ~~~~ \n"
+        pvs
+echo -e "\n ~~~~ Available Volume Group ~~~~ \n"
+        vgs
+echo -e "\n ~~~~ Available Logical Volume ~~~~ \n"
+        lvs
+
+echo -e "\n ~~~~ Mount Details ~~~~ \n"
+        cat /proc/mounts
+
+echo -e "\n ~~~~ Service Details ~~~~\n "
+        getsebool
+        service --status-all
+
+echo -e "\n ~~~~ NTP Sync ~~~~\n"
+        ntpq -pn
+
+echo -e "\n ~~~~ SCSI Details ~~~~ \n"
+        cat /proc/scsi/scsi
+
+echo -e "\n ~~~~ LSPCI ~~~~  \n"
+        lspci
+
+
+##MISC Details
+echo > ${LOG3}
+
+exec >> ${LOG3} 2>> ${LOG3}
+
+echo -e " ~~~~ Post boot Misc Details ~~~~ \n"
+
+sysinfo
+
+#Disk Usage for local filesystems
+echo -e "\n ~~~~ Disk Usage (Local Only) ~~~~\n"
+      df -Pl  | column -t
+
+#Logged in User
+        echo -e "\n ~~~~ Currently Logged in Users ~~~~ \n"
+        who
+
+echo -e "\n ~~~~ Listening Ports TCP/UDP ~~~~ \n"
+        netstat -tunpl
+
+#Harddisk Details
+
+#echo -e "\n ~~~~ harddisk size ~~~~  \n$(sfdisk -s)"
+echo -e "\n ~~~~ fdisk ~~~~ \n"
+        fdisk -l
+
+#eth tool details
+echo -e "\n~~~~ Ethernet Card Details ~~~~"
+
+        for i in $(ifconfig -a | grep eth | cut -d " " -f1);do echo -e "$i :\n  $(ethtool $i)" ;done
+
+#MultiPath Details
+echo -e "\n ~~~~ Multipath ~~~~ \n"
+        multipath -ll
+
+#CPU details
+echo -e "\n ~~~~ CPU details ~~~~ \n"
+        cat /proc/cpuinfo
+
+#Run Level Check
+echo -e "\n ~~~~ Chkconfig ~~~~ \n"
+        chkconfig --list
+
+#Run level 3 Check
+echo -e "\n ~~~~ run level3 Startup Scripts ~~~~ \n"
+        ls -l /etc/rc.d/rc3.d
+
+#Process Details
+echo -e "\n ~~~~ Process Details ~~~~ \n"
+        ps aux
+
+echo -e "\n ~~~~ Installed rpm's list ~~~~ \n"
+        rpm -qa --last
+
+
+#List of open files
+
+echo -e "\n ~~~~ List of Open files ~~~~\n"
+        lsof
+)| tee -a /tmp/cooltest
+
+rm -rf /tmp/cooltest
+cat  ${LOG2} | more
+#exec > ${LOG2}
+
